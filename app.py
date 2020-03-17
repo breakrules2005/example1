@@ -1,207 +1,138 @@
-{
- "cells": [
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "metadata": {},
-   "outputs": [
-    {
-     "name": "stdout",
-     "output_type": "stream",
-     "text": [
-      " * Serving Flask app \"__main__\" (lazy loading)\n",
-      " * Environment: production\n",
-      "   WARNING: Do not use the development server in a production environment.\n",
-      "   Use a production WSGI server instead.\n",
-      " * Debug mode: off\n"
-     ]
-    },
-    {
-     "name": "stderr",
-     "output_type": "stream",
-     "text": [
-      " * Running on http://127.0.0.1:4000/ (Press CTRL+C to quit)\n",
-      "127.0.0.1 - - [17/Mar/2020 14:50:10] \"GET / HTTP/1.1\" 200 -\n",
-      "127.0.0.1 - - [17/Mar/2020 14:50:10] \"GET /favicon.ico HTTP/1.1\" 404 -\n",
-      "127.0.0.1 - - [17/Mar/2020 14:50:17] \"GET /predict HTTP/1.1\" 400 -\n",
-      "127.0.0.1 - - [17/Mar/2020 14:53:56] \"GET /predict?thal=fixed%20defect&cp=atypical%20angina&slope=flat&exang=1&ca=2 HTTP/1.1\" 200 -\n",
-      "127.0.0.1 - - [17/Mar/2020 14:58:58] \"GET /page HTTP/1.1\" 200 -\n",
-      "127.0.0.1 - - [17/Mar/2020 14:59:05] \"POST /result HTTP/1.1\" 200 -\n",
-      "127.0.0.1 - - [17/Mar/2020 14:59:05] \"GET /favicon.ico HTTP/1.1\" 404 -\n",
-      "127.0.0.1 - - [17/Mar/2020 14:59:22] \"POST /result HTTP/1.1\" 200 -\n",
-      "127.0.0.1 - - [17/Mar/2020 15:00:31] \"POST /result HTTP/1.1\" 200 -\n",
-      "127.0.0.1 - - [17/Mar/2020 15:03:56] \"POST /result HTTP/1.1\" 200 -\n"
-     ]
-    }
-   ],
-   "source": [
-    "# -*- coding: utf-8 -*-\n",
-    "\"\"\"\n",
-    "Created on Sun Jan 26 14:11:37 2020\n",
-    "@author: Ratchainant\n",
-    "\"\"\"\n",
-    "import numpy as np\n",
-    "import flask\n",
-    "import pickle\n",
-    "# app\n",
-    "app = flask.Flask(__name__)\n",
-    "# load model\n",
-    "heart = pickle.load(open(\"Logregheart.pkl\",\"rb\"))\n",
-    "# routes\n",
-    "\n",
-    "#Ex Pass\n",
-    "#?thal=fixed%20defect&cp=atypical%20angina&slope=flat&exang=1&ca=2\n",
-    "\n",
-    "@app.route(\"/\")\n",
-    "def home():\n",
-    "    return \"\"\"\n",
-    "           <body>\n",
-    "           <h1>Heart Disease Prediction<h1>\n",
-    "           </body>\"\"\"\n",
-    "\n",
-    "@app.route(\"/predict\", methods=[\"GET\"])\n",
-    "def predict():\n",
-    "    thal = flask.request.args[\"thal\"]\n",
-    "    cp = flask.request.args[\"cp\"]\n",
-    "    slope = flask.request.args[\"slope\"]\n",
-    "    exang = flask.request.args[\"exang\"]\n",
-    "    ca = flask.request.args[\"ca\"]\n",
-    "    fmap = {\"normal\": [1, 0, 0],\n",
-    "            \"fixed defect\": [0, 1, 0],\n",
-    "            \"reversable defect\": [0, 0, 1],\n",
-    "            \"typical angina\": [1, 0, 0, 0],\n",
-    "            \"atypical angina\": [0, 1, 0, 0],\n",
-    "            \"non anginal pain\": [0, 0, 1, 0],\n",
-    "            \"asymptomatic\": [0, 0, 0, 1],\n",
-    "            \"upsloping\": [1, 0, 0],\n",
-    "            \"flat\": [0, 1, 0],\n",
-    "            \"downsloping\": [0, 0, 1]}\n",
-    "    # X_new = fmap[thal] + fmap[cp] + fmap[slope]\n",
-    "    X_new = np.array(fmap[thal] + fmap[cp] + fmap[slope] + [int(exang)] + [int(ca)]).reshape(1, -1)\n",
-    "    yhat = heart.predict(X_new)\n",
-    "    if yhat[0] == 1:\n",
-    "        outcome = \"heart disease\"\n",
-    "    else:\n",
-    "        outcome = \"normal\"\n",
-    "    prob = heart.predict_proba(X_new)\n",
-    "    return \"This patient is diagnosed as \" + outcome + \" with probability \" + str(round(prob[0][1], 2))\n",
-    "\n",
-    "@app.route(\"/page\")\n",
-    "def page():\n",
-    "    with open(\"page.html\", 'r') as viz_file:\n",
-    "       return viz_file.read()\n",
-    "\n",
-    "@app.route(\"/result\", methods=[\"GET\", \"POST\"])\n",
-    "def result():\n",
-    "    \"\"\"Gets prediction using the HTML form\"\"\"\n",
-    "    if flask.request.method == \"POST\":\n",
-    "        inputs = flask.request.form\n",
-    "        thal = inputs[\"thal\"]\n",
-    "        cp = inputs[\"cp\"]\n",
-    "        slope = inputs[\"slope\"]\n",
-    "        exang = inputs[\"exang\"]\n",
-    "        ca = inputs[\"ca\"]\n",
-    "    fmap = {\"normal\": [1, 0, 0],\n",
-    "            \"fixed defect\": [0, 1, 0],\n",
-    "            \"reversable defect\": [0, 0, 1],\n",
-    "            \"typical angina\": [1, 0, 0, 0],\n",
-    "            \"atypical angina\": [0, 1, 0, 0],\n",
-    "            \"non anginal pain\": [0, 0, 1, 0],\n",
-    "            \"asymptomatic\": [0, 0, 0, 1],\n",
-    "            \"upsloping\": [1, 0, 0],\n",
-    "            \"flat\": [0, 1, 0],\n",
-    "            \"downsloping\": [0, 0, 1]}\n",
-    "    X_new = np.array(fmap[thal] + fmap[cp] + fmap[slope] + [int(exang)] + [int(ca)]).reshape(1, -1)\n",
-    "    yhat = heart.predict(X_new)\n",
-    "    if yhat[0] == 1:\n",
-    "        outcome = \"heart disease\"\n",
-    "    else:\n",
-    "        outcome = \"normal\"\n",
-    "    prob = heart.predict_proba(X_new)\n",
-    "    # results = \"\"\"\n",
-    "    #           <body>\n",
-    "    #           <h3> Heart Disease Diagnosis <h3>\n",
-    "    #           <p> Patient profile </p>\n",
-    "    #               <h5> Thalassemia: \"\"\" + thal + \"\"\"</h5>\n",
-    "    #               <h5> Chest Pain: \"\"\" + cp + \"\"\"</h5>\n",
-    "    #               <h5> Slope: \"\"\" + slope + \"\"\"</h5>\n",
-    "    #               <h5> Exercise induced angina: \"\"\" + exang + \"\"\"</h5>\n",
-    "    #               <h5> Number of major vessels (0-3) colored by flourosopy: \"\"\" + ca + \"\"\"</h5>\n",
-    "    #           <p> This patient is diagnose as \"\"\" + outcome + \"\"\" with probability \"\"\" + str(round(prob[0][1], 2)) + \"\"\".\n",
-    "    #           </body>\n",
-    "    #           \"\"\"\n",
-    "    results = \"\"\"\n",
-    "              <body>\n",
-    "              <h3> Heart Disease Diagnosis <h3>\n",
-    "              <p><h4> Patient profile </h4></p>\n",
-    "              <table>\n",
-    "              <tr>\n",
-    "                  <td>Thalassemia: </td>\n",
-    "                  <td>\"\"\" + thal + \"\"\"</td>\n",
-    "              </tr>\n",
-    "              <tr>\n",
-    "                  <td>Chest Pain: </td>\n",
-    "                  <td>\"\"\" + cp + \"\"\"</td>\n",
-    "              </tr>\n",
-    "              <tr>\n",
-    "                  <td>Slope: </td>\n",
-    "                  <td>\"\"\" + slope + \"\"\"</td>\n",
-    "              </tr>\n",
-    "              <tr>\n",
-    "                  <td>Exercise induced angina: </td>\n",
-    "                  <td>\"\"\" + exang + \"\"\"</td>\n",
-    "              </tr>\n",
-    "              <tr>\n",
-    "                  <td>Number of major vessels</td>\n",
-    "                  <td>\"\"\" + ca + \"\"\"</td>\n",
-    "              </tr>\n",
-    "              </table>\n",
-    "              <p> This patient is diagnose as \"\"\" + outcome + \"\"\" with probability \"\"\" + str(round(prob[0][1], 2)) + \"\"\".\n",
-    "              </body>\"\"\"\n",
-    "              # <h3> Heart Disease Diagnosis <h3>\n",
-    "              # <p> Patient profile </p>\n",
-    "              #     <h5> Thalassemia: \"\"\" + thal + \"\"\"</h5>\n",
-    "              #     <h5> Chest Pain: \"\"\" + cp + \"\"\"</h5>\n",
-    "              #     <h5> Slope: \"\"\" + slope + \"\"\"</h5>\n",
-    "              #     <h5> Exercise induced angina: \"\"\" + exang + \"\"\"</h5>\n",
-    "              #     <h5> Number of major vessels (0-3) colored by flourosopy: \"\"\" + ca + \"\"\"</h5>\n",
-    "              # <p> This patient is diagnose as \"\"\" + outcome + \"\"\" with probability \"\"\" + str(round(prob[0][1], 2)) + \"\"\".\n",
-    "              # </body>\n",
-    "    return results\n",
-    "if __name__ == '__main__':\n",
-    "    \"\"\"Connect to Server\"\"\"\n",
-    "    HOST = \"127.0.0.1\"\n",
-    "    PORT = \"4000\"\n",
-    "    app.run(HOST, PORT)"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "metadata": {},
-   "outputs": [],
-   "source": []
-  }
- ],
- "metadata": {
-  "kernelspec": {
-   "display_name": "Python 3",
-   "language": "python",
-   "name": "python3"
-  },
-  "language_info": {
-   "codemirror_mode": {
-    "name": "ipython",
-    "version": 3
-   },
-   "file_extension": ".py",
-   "mimetype": "text/x-python",
-   "name": "python",
-   "nbconvert_exporter": "python",
-   "pygments_lexer": "ipython3",
-   "version": "3.7.3"
-  }
- },
- "nbformat": 4,
- "nbformat_minor": 2
-}
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Jan 26 14:11:37 2020
+@author: Ratchainant
+"""
+import numpy as np
+import flask
+import pickle
+# app
+app = flask.Flask(__name__)
+# load model
+heart = pickle.load(open("Logregheart.pkl","rb"))
+# routes
+
+#Ex Pass
+#?thal=fixed%20defect&cp=atypical%20angina&slope=flat&exang=1&ca=2
+
+@app.route("/")
+def home():
+    return """
+           <body>
+           <h1>Heart Disease Prediction<h1>
+           </body>"""
+
+@app.route("/predict", methods=["GET"])
+def predict():
+    thal = flask.request.args["thal"]
+    cp = flask.request.args["cp"]
+    slope = flask.request.args["slope"]
+    exang = flask.request.args["exang"]
+    ca = flask.request.args["ca"]
+    fmap = {"normal": [1, 0, 0],
+            "fixed defect": [0, 1, 0],
+            "reversable defect": [0, 0, 1],
+            "typical angina": [1, 0, 0, 0],
+            "atypical angina": [0, 1, 0, 0],
+            "non anginal pain": [0, 0, 1, 0],
+            "asymptomatic": [0, 0, 0, 1],
+            "upsloping": [1, 0, 0],
+            "flat": [0, 1, 0],
+            "downsloping": [0, 0, 1]}
+    # X_new = fmap[thal] + fmap[cp] + fmap[slope]
+    X_new = np.array(fmap[thal] + fmap[cp] + fmap[slope] + [int(exang)] + [int(ca)]).reshape(1, -1)
+    yhat = heart.predict(X_new)
+    if yhat[0] == 1:
+        outcome = "heart disease"
+    else:
+        outcome = "normal"
+    prob = heart.predict_proba(X_new)
+    return "This patient is diagnosed as " + outcome + " with probability " + str(round(prob[0][1], 2))
+
+@app.route("/page")
+def page():
+    with open("page.html", 'r') as viz_file:
+       return viz_file.read()
+
+@app.route("/result", methods=["GET", "POST"])
+def result():
+    """Gets prediction using the HTML form"""
+    if flask.request.method == "POST":
+        inputs = flask.request.form
+        thal = inputs["thal"]
+        cp = inputs["cp"]
+        slope = inputs["slope"]
+        exang = inputs["exang"]
+        ca = inputs["ca"]
+    fmap = {"normal": [1, 0, 0],
+            "fixed defect": [0, 1, 0],
+            "reversable defect": [0, 0, 1],
+            "typical angina": [1, 0, 0, 0],
+            "atypical angina": [0, 1, 0, 0],
+            "non anginal pain": [0, 0, 1, 0],
+            "asymptomatic": [0, 0, 0, 1],
+            "upsloping": [1, 0, 0],
+            "flat": [0, 1, 0],
+            "downsloping": [0, 0, 1]}
+    X_new = np.array(fmap[thal] + fmap[cp] + fmap[slope] + [int(exang)] + [int(ca)]).reshape(1, -1)
+    yhat = heart.predict(X_new)
+    if yhat[0] == 1:
+        outcome = "heart disease"
+    else:
+        outcome = "normal"
+    prob = heart.predict_proba(X_new)
+    # results = """
+    #           <body>
+    #           <h3> Heart Disease Diagnosis <h3>
+    #           <p> Patient profile </p>
+    #               <h5> Thalassemia: """ + thal + """</h5>
+    #               <h5> Chest Pain: """ + cp + """</h5>
+    #               <h5> Slope: """ + slope + """</h5>
+    #               <h5> Exercise induced angina: """ + exang + """</h5>
+    #               <h5> Number of major vessels (0-3) colored by flourosopy: """ + ca + """</h5>
+    #           <p> This patient is diagnose as """ + outcome + """ with probability """ + str(round(prob[0][1], 2)) + """.
+    #           </body>
+    #           """
+    results = """
+              <body>
+              <h3> Heart Disease Diagnosis <h3>
+              <p><h4> Patient profile </h4></p>
+              <table>
+              <tr>
+                  <td>Thalassemia: </td>
+                  <td>""" + thal + """</td>
+              </tr>
+              <tr>
+                  <td>Chest Pain: </td>
+                  <td>""" + cp + """</td>
+              </tr>
+              <tr>
+                  <td>Slope: </td>
+                  <td>""" + slope + """</td>
+              </tr>
+              <tr>
+                  <td>Exercise induced angina: </td>
+                  <td>""" + exang + """</td>
+              </tr>
+              <tr>
+                  <td>Number of major vessels</td>
+                  <td>""" + ca + """</td>
+              </tr>
+              </table>
+              <p> This patient is diagnose as """ + outcome + """ with probability """ + str(round(prob[0][1], 2)) + """.
+              </body>"""
+              # <h3> Heart Disease Diagnosis <h3>
+              # <p> Patient profile </p>
+              #     <h5> Thalassemia: """ + thal + """</h5>
+              #     <h5> Chest Pain: """ + cp + """</h5>
+              #     <h5> Slope: """ + slope + """</h5>
+              #     <h5> Exercise induced angina: """ + exang + """</h5>
+              #     <h5> Number of major vessels (0-3) colored by flourosopy: """ + ca + """</h5>
+              # <p> This patient is diagnose as """ + outcome + """ with probability """ + str(round(prob[0][1], 2)) + """.
+              # </body>
+    return results
+if __name__ == '__main__':
+    """Connect to Server"""
+    HOST = "127.0.0.1"
+    PORT = "4000"
+    app.run(HOST, PORT)
